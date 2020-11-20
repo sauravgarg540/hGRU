@@ -1,5 +1,7 @@
 import configparser
 
+
+# Method to convert configuration to list of dictionaries
 def configuration(file_name):
     config = configparser.ConfigParser()
     config.read(file_name)
