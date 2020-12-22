@@ -1,18 +1,13 @@
 # Feature Extractor in the paper
+
 import torch
-import torchvision
-import numpy as np
-from PIL import Image
-import matplotlib.pyplot as plt
+import torch.nn as nn
 
 
-im = Image.open("sample.png")
-print(im.size)
+class Feature_Extractor(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.conv = nn.Conv2d(1, 25, kernel_size=7, stride=2, padding=1)
+    def forward(self,x):
+        print("inside feature extractor", x)
 
-resize = torchvision.transforms.Resize(150, 2)
-im = resize(im)
-print(im.size)
-
-plt.figure()
-plt.imshow(im)
-plt.show()
