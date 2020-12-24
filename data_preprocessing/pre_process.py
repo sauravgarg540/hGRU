@@ -1,6 +1,6 @@
-    """
-    Scripts for feature extraction
-    """
+"""
+Scripts for feature extraction
+"""
 
 import torchvision
 import numpy as np
@@ -9,15 +9,20 @@ import cv2
 import matplotlib.pyplot as plt
 
 
-im = Image.open("sample.png")
-print(im.size)
-img = cv2.imread('sample.png')
-print(img.shape)
 
-resize = torchvision.transforms.Resize(150, 2)
-im = resize(im)
-print(im.size)
 
-plt.figure()
-plt.imshow(img)
-plt.show()
+def return_image():
+    im = Image.open("sample.png")
+    # print(im.size)
+    img = cv2.imread('sample.png')
+    # print(img.shape)
+
+    resize = torchvision.transforms.Resize(150, 2)
+    im = resize(im)
+    # print(im.size)
+
+    # plt.figure()
+    # plt.imshow(img)
+    # plt.show()
+
+    return img
