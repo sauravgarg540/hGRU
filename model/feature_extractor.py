@@ -15,8 +15,3 @@ class Feature_Extractor(nn.Module):
     def forward(self,x):
         x = self.conv(x)
         return x
-
-
-
-(1/2)+1
-

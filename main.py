@@ -9,13 +9,12 @@ if __name__ == "__main__":
     if torch.cuda.is_available():
         print("CUDA available")
     x = torch.from_numpy(np.zeros((1,1,150,150) ,dtype = np.float32)).cuda()
-    cell = model.hGRU().cuda()
+    cell = model.hGRU(2).cuda()
+    # image = return_image()
     cell.forward(x)
-
-    image = return_image()
-    # cell.forward(image, 2)
-    # for p in cell.parameters():
-    #     print(p.name)
+    # for name, param in cell.named_parameters():
+    #     if param.requires_grad:
+    #         print(name)
 
 
 
