@@ -22,6 +22,9 @@ class HgruCell(nn.Module):
         self.w = nn.Parameter(torch.empty((num_filter,1,1)))
         self.mu= nn.Parameter(torch.empty((num_filter,1,1)))
         self.timesteps = timesteps
+       
+        # learnable T-dimensional parameter
+        self.n = nn.Parameter(torch.randn(self.timesteps,1,1))
 
         # making W symmetric across the channel.
         # The HxW filter is not symmetric rather it is symmetric across channel decreasing number of parameters to be learned by half.
@@ -33,27 +36,26 @@ class HgruCell(nn.Module):
 # y0 denote the center of the kernel.
 
         
-    def forward(self, x,timesteps = 8):
+    def forward(self, x):
 
         h_2 = nn.init.xavier_uniform_(torch.empty_like(x))   
-        for i in range(timesteps):
+        for i in range(self.timesteps):
 
             g_1 = torch.sigmoid((self.u_1(h_2) + self.b_1))
-            print(f" g_1 : {g_1.shape}")
+            # print(f" g_1 : {g_1.shape}")
             c_1 = self.w_gate(g_1 * h_2)
-            print(f" c_1 : {c_1.shape}")
+            # print(f" c_1 : {c_1.shape}")
             h_1 = torch.relu(x - c_1 * (self.alpha * h_2 + self.mu))
-            print(f" h_1 : {h_1.shape}")
+            # print(f" h_1 : {h_1.shape}")
             g_2 = torch.sigmoid((self.u_2(h_1) + self.b_2))
-            print(f" g_1 : {g_1.shape}")
+            # print(f" g_1 : {g_1.shape}")
             c_2 = self.w_gate(h_1)
-            print(f" c_2 : {c_2.shape}")
+            # print(f" c_2 : {c_2.shape}")
             h_2_intemmediate = torch.nn.functional.relu(self.kappa * h_1 + self.gamma * c_2 + self.w * h_1 * c_2)
-            print(f" h_2_inter : {h_2_intemmediate.shape}")
-            # TODO: implement self.n
-            h_2 = self.n * ( h_2 * ( 1-g_2) + h_2_intemmediate * g_2)
-            print(f" h_2 : {h_2.shape}")
-            print("success")
+            # print(f" h_2_inter : {h_2_intemmediate.shape}")
+            h_2 = self.n[i] * ( h_2 * ( 1-g_2) + h_2_intemmediate * g_2)
+            # print(f" h_2 : {h_2.shape}")
+        return h_2
 
       
     
