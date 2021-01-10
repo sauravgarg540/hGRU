@@ -17,6 +17,7 @@ class hGRU(nn.Module):
 
     def forward(self, x):
         x = self.feature_extractor(x)
+        x = np.square(x)
         h_2 = self.hgu(x)
         output = self.readout(h_2)
         return output

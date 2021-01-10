@@ -6,24 +6,23 @@ import torch
 
 def convert_array_to_image(source, destination):
     for filename in os.listdir(source):
-        print(source+'/'+filename)
+        # print(source+'/'+filename)
         data = np.load(source+'/'+filename)
-        data = data.gpu()
         images = data["images"]
         labels = data["labels"]
         images = images.astype('uint8')
-        for i,(image, label) in enumerate(zip(images, labels)):
-            img = Image.fromarray(image, 'L')
+        for i,image in enumerate(images):
+            img = Image.fromarray(image)
             image_directory = destination +'images/'+filename[0:-4]
             if not os.path.exists(image_directory):
                 os.makedirs(image_directory)
             img.save(image_directory+'/' +str(i) + '.png')
-            label_directory = destination +'labels/'+filename[0:-4]
-            if not os.path.exists(label_directory):
-                    os.makedirs(label_directory)
-                    np.save(label_directory +'/label.npy', label)
+        label_directory = destination +'labels/'+filename[0:-4]
+        if not os.path.exists(label_directory):
+                os.makedirs(label_directory)
+                np.save(label_directory +'/labels.npy', labels)
 
 
-source = "D:/Study/ULMUniversity/Thesis/dataset/pf6/curv_contour_length_6_full/train"
-destination = "D:/Study/ULMUniversity/Thesis/dataset/pf6_with_images/curv_contour_length_6_full/train/"
+source = "D:/Study/ULMUniversity/Thesis/dataset/pf14/curv_contour_length_14_full/val"
+destination = "D:/Study/ULMUniversity/Thesis/dataset/pf14_with_images/curv_contour_length_14_full/val/"
 convert_array_to_image(source, destination)

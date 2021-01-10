@@ -2,6 +2,7 @@
 
 import torch
 import torch.nn as nn
+import numpy as np
 
 
 class Feature_Extractor(nn.Module):
@@ -9,7 +10,8 @@ class Feature_Extractor(nn.Module):
         super().__init__()
         self.padding = kernel_size//2
         self.conv = nn.Conv2d(in_channels, out_channels, kernel_size=kernel_size, padding=self.padding)
-        
+        self.conv.weight.data = torch.FloatTensor(np.load("gabor_serre.npy"))
+        nn.init.zeros_(self.conv.bias.data)
         # TODO: Initialize weights with gabor filter
     
     def forward(self,x):
