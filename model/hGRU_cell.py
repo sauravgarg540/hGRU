@@ -11,50 +11,59 @@ class HgruCell(nn.Module):
     
     def __init__(self, num_filter = 25, kernel_size = 15, timesteps = 8):
         super().__init__()
-        self.u_1 = nn.Conv2d(num_filter,num_filter,1, padding = 0)
-        self.u_2 = nn.Conv2d(num_filter,num_filter,1, padding = 0)
-        self.b_1 = nn.Parameter(torch.empty(num_filter,1,1))
-        self.b_2 = nn.Parameter(torch.empty(num_filter,1,1))
-        self.w_gate = torch.nn.Conv2d(num_filter, num_filter, kernel_size, padding = kernel_size//2)
-        self.alpha = nn.Parameter(torch.empty((num_filter,1,1)))
-        self.gamma = nn.Parameter(torch.empty((num_filter,1,1)))
-        self.kappa = nn.Parameter(torch.empty((num_filter,1,1)))
-        self.w = nn.Parameter(torch.empty((num_filter,1,1)))
-        self.mu= nn.Parameter(torch.empty((num_filter,1,1)))
         self.timesteps = timesteps
-       
+        self.u_1 = nn.Conv2d(num_filter,num_filter,1, padding = 0, bias = False)#gain_kernel
+        self.u_2 = nn.Conv2d(num_filter,num_filter,1, padding = 0, bias = False)#mix_kernel
+        
+        # Chronos initialized for bias
+        self.b_1 = nn.Parameter(-np.log(torch.FloatTensor(1,num_filter,1,1).uniform_(1, self.timesteps - 1)))#gain_bias
+        self.b_2 = nn.Parameter(np.log(torch.FloatTensor(1,num_filter,1,1).uniform_(1, self.timesteps - 1)))#mix_bias
+
+        self.w_gate_inh = torch.nn.Conv2d(num_filter, num_filter, kernel_size, padding = kernel_size//2, bias = False)#horizontal_kernel
+        self.w_gate_exc = torch.nn.Conv2d(num_filter, num_filter, kernel_size, padding = kernel_size//2, bias = False)
+        
+        self.alpha = nn.Parameter(torch.empty((1,num_filter,1,1)))
+        self.mu= nn.Parameter(torch.empty((1,num_filter,1,1)))
+        self.gamma = nn.Parameter(torch.empty((1,num_filter,1,1)))
+        self.kappa = nn.Parameter(torch.empty((1,num_filter,1,1)))
+        self.omega = nn.Parameter(torch.empty((1,num_filter,1,1)))
+        # check shapes of alpha, mu, gamma, kappa
         # learnable T-dimensional parameter
-        self.n = nn.Parameter(torch.randn(self.timesteps,1,1))
+        self.n = nn.Parameter(torch.FloatTensor(self.timesteps,1,1).uniform_(-0.5, 0.5))
 
         # making W symmetric across the channel.
         # The HxW filter is not symmetric rather it is symmetric across channel decreasing number of parameters to be learned by half.
-        nn.init.xavier_uniform_(self.w_gate.weight)
-        self.w_gate.weight = nn.Parameter(0.5* (self.w_gate.weight + torch.transpose(self.w_gate.weight, 0,1)))
+        nn.init.xavier_uniform_(self.w_gate_exc.weight)
+        self.w_gate_exc.weight = nn.Parameter(0.5* (self.w_gate_exc.weight + torch.transpose(self.w_gate_exc.weight, 0,1)))
+        nn.init.xavier_uniform_(self.w_gate_inh.weight)
+        self.w_gate_inh.weight = nn.Parameter(0.5* (self.w_gate_inh.weight + torch.transpose(self.w_gate_inh.weight, 0,1)))
 
-# W is constrained to have symmetric weights between channels,
-# such that the weight Wx0+∆x;y0+∆y;k1;k2 is equal to the weight Wx0+∆x;y0+∆y;k2;k1 where x0 and
-# y0 denote the center of the kernel.
-
+        nn.init.xavier_uniform_(self.u_1.weight)
+        # nn.init.constant_(self.u_1.bias, 0)
+        nn.init.xavier_uniform_(self.u_2.weight)
+        # nn.init.constant_(self.u_2.bias, 0)
+        nn.init.xavier_uniform_(self.alpha)
+        nn.init.xavier_uniform_(self.gamma)
+        nn.init.xavier_uniform_(self.kappa)
+        nn.init.xavier_uniform_(self.omega)
+        nn.init.xavier_uniform_(self.mu)
         
-    def forward(self, x):
+    def forward(self, x, timesteps):
+        h_2 = None
+        for i in range(timesteps):
+            if (i==0):
+                h_2 = nn.init.xavier_uniform_(torch.empty_like(x))
+            g1_intermediate = self.u_1(h_2)
+            g_1 = torch.sigmoid(g1_intermediate + self.b_1)
+            c_1 = self.w_gate_inh(h_2*g_1)
+            h_1 = torch.tanh(x - ((self.alpha * h_2 + self.mu)*c_1))
+            g2_intermediate = self.u_2(h_1) 
+            g_2 = torch.sigmoid(g2_intermediate + self.b_2)
+            c_2 = self.w_gate_exc(h_1)
+            h_2_intemmediate = torch.tanh((self.kappa * (h_1 + (self.gamma * c_2))) + (self.omega * (h_1 * (self.gamma * c_2))))
+            # h_2 = self.n[i] * (( 1-g_2) * h_2 +  g_2 * h_2_intemmediate)
+            h_2 = ((( 1-g_2) * h_2_intemmediate) + (g_2 * h_2))* self.n[i]
 
-        h_2 = nn.init.xavier_uniform_(torch.empty_like(x))   
-        for i in range(self.timesteps):
-
-            g_1 = torch.sigmoid((self.u_1(h_2) + self.b_1))
-            # print(f" g_1 : {g_1.shape}")
-            c_1 = self.w_gate(g_1 * h_2)
-            # print(f" c_1 : {c_1.shape}")
-            h_1 = torch.relu(x - c_1 * (self.alpha * h_2 + self.mu))
-            # print(f" h_1 : {h_1.shape}")
-            g_2 = torch.sigmoid((self.u_2(h_1) + self.b_2))
-            # print(f" g_1 : {g_1.shape}")
-            c_2 = self.w_gate(h_1)
-            # print(f" c_2 : {c_2.shape}")
-            h_2_intemmediate = torch.nn.functional.relu(self.kappa * h_1 + self.gamma * c_2 + self.w * h_1 * c_2)
-            # print(f" h_2_inter : {h_2_intemmediate.shape}")
-            h_2 = self.n[i] * ( h_2 * ( 1-g_2) + h_2_intemmediate * g_2)
-            # print(f" h_2 : {h_2.shape}")
         return h_2
 
       

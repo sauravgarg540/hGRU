@@ -1,26 +1,36 @@
 import numpy as np
 import os 
+import torch
 from torch.utils.data import Dataset
 from PIL import Image
 
 class CustomDataset(Dataset):
-    def __init__(self, data_root):
+    def __init__(self, data_root, transform = None):
         self.data_root = data_root
-        self.images = []
-        self.labels = []
-        for filenames in os.listdir(self.data_root)
-            data = np.load(data_root+'/'+filename)
-            img = data["images"]
-            lbl = data["labels"]
-            for image, label in zip(img,lbl):
-                img = Image.fromarray(image)
-                self.images.append(img)
-                self.labels.append(label)
+        self.image_list = None
+        self.transform = transform
+        self.parse_txtfile_()
+    
+    def create_array(self, row):
+        return [row[0], row[1]]
+    
+    def parse_txtfile_(self):
+        self.image_list = np.array([self.create_array(row.strip().split(' ')) for row in open(self.data_root)])
 
     def __len__(self):
-        return len(self.filenames)*1000
+        return self.image_list.shape[0]
 
     def __getitem__(self, index):
-        
-        return self.images[index], self.labels[index]
+        # image = Image.open()
+        image = Image.open(self.image_list[index][0])
+        label = self.image_list[index][1]
+        # print(label)
+        image= self.transform(image)
+        label = torch.tensor(float(label)).long()
+        # print(label)
+        # print(image.shape)
+        # print(label.shape)
+        return image, label
+
+
 
