@@ -21,15 +21,10 @@ class CustomDataset(Dataset):
         return self.image_list.shape[0]
 
     def __getitem__(self, index):
-        # image = Image.open()
         image = Image.open(self.image_list[index][0])
         label = self.image_list[index][1]
-        # print(label)
         image= self.transform(image)
         label = torch.tensor(float(label)).long()
-        # print(label)
-        # print(image.shape)
-        # print(label.shape)
         return image, label
 
 

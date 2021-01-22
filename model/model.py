@@ -17,7 +17,7 @@ class hGRU(nn.Module):
         self.conv_feature_extractor = nn.Conv2d(in_channels, out_channels, kernel_size=kernel_size, padding=self.padding)
         self.conv_feature_extractor.weight.data = torch.FloatTensor(np.load("gabor_serre.npy"))
         self.timesteps = timesteps
-        
+        self.hgru_unit = HgruCell()
         # readout stage
         self.conv6 = nn.Conv2d(25, 2, kernel_size=1, bias=False)
         self.maxpool = nn.MaxPool2d(150, stride=1)
@@ -40,16 +40,10 @@ class hGRU(nn.Module):
     def forward(self, x):
         x = self.conv_feature_extractor(x)
         x = torch.pow(x, 2) #elementwise multiplication
-        self.hgru_unit = HgruCell()
-        self.hgru_unit.cuda()
         h_2 = self.hgru_unit(x, timesteps = self.timesteps)
         h_2 = self.bn2(h_2)
-        x = self.conv6(h_2)
-        x = x.view(x.size(0),x.size(2),x.size(3),x.size(1))
-        x = torch.max(torch.max(x,1).values,1).values #global maxpooling
-        # print(x.size())
+        x = self.conv6(h_2) #[1,2,150,150]
+        x =torch.max(torch.max(x,2).values,2).values
         x = self.bn1(x)
-        # x = x.view(x.size(0), -1)
-        x = self.flat(x)
         x = self.fc(x)
         return x
