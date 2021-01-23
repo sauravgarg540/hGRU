@@ -5,16 +5,18 @@ from model.hGRU_cell import HgruCell
 import matplotlib.pyplot as plt
 
 class hGRU(nn.Module):
-
     
-    def __init__(self,  in_channels = 1, out_channels = 25, kernel_size = 7, hgru_kernel_size = 15, readout_kernel_size = 1,  stride = 1, timesteps = 8):
-        super().__init__()
+    def __init__(self, config = None):
         
-        self.timesteps = timesteps
-
+        super().__init__()
+        if(config==None):
+            raise RuntimeError('cong=figuration file not found') 
+        
+        self.timesteps = config.getint('hgru', 'timesteps')
         # Feature extraction stage
+        kernel_size = 7
         self.padding = kernel_size//2
-        self.conv_feature_extractor = nn.Conv2d(in_channels, out_channels, kernel_size=kernel_size, padding=self.padding)
+        self.conv_feature_extractor = nn.Conv2d(1, 25, kernel_size= kernel_size, padding=self.padding)
         self.conv_feature_extractor.weight.data = torch.FloatTensor(np.load("gabor_serre.npy"))
         
         # HRGU
