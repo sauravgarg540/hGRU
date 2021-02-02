@@ -69,7 +69,6 @@ def train(rank, world_size):
         
     for epoch in range(1, epochs+1):
         
-        losses = []
      
         for i, (imgs, targets) in enumerate(dataloader):
 
