@@ -9,10 +9,7 @@ class hGRU(nn.Module):
     def __init__(self, config = None):
         
         super().__init__()
-        if(config==None):
-            raise RuntimeError('cong=figuration file not found') 
-        
-        self.timesteps = config.getint('hgru', 'timesteps')
+        self.timesteps = 8
         # Feature extraction stage
         kernel_size = 7
         self.padding = kernel_size//2

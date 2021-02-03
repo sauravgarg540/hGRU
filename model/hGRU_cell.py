@@ -38,6 +38,9 @@ class HgruCell(nn.Module):
         nn.init.xavier_uniform_(self.w_gate_inh.weight)
         self.w_gate_inh.weight = nn.Parameter(0.5* (self.w_gate_inh.weight + torch.transpose(self.w_gate_inh.weight, 0,1)))
 
+        self.w_gate_inh.register_hook(lambda grad: (grad + torch.transpose(grad,1,0))*0.5)
+        self.w_gate_exc.register_hook(lambda grad: (grad + torch.transpose(grad,1,0))*0.5)
+
         nn.init.xavier_uniform_(self.u_1.weight)
         # nn.init.constant_(self.u_1.bias, 0)
         nn.init.xavier_uniform_(self.u_2.weight)
