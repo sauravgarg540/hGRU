@@ -63,9 +63,9 @@ class HgruCell(nn.Module):
             g2_intermediate = self.u_2(h_1) 
             g_2 = torch.sigmoid(g2_intermediate + self.b_2)
             c_2 = self.w_gate_exc(h_1)
-            h_2_intemmediate = torch.tanh((self.kappa * (h_1 + (self.gamma * c_2))) + (self.omega * (h_1 * (self.gamma * c_2))))
-            # h_2 = self.n[i] * (( 1-g_2) * h_2 +  g_2 * h_2_intemmediate)
-            h_2 = ((( 1-g_2) * h_2_intemmediate) + (g_2 * h_2))* self.n[i]
+            h_2_intermediate = torch.tanh((self.kappa * (h_1 + (self.gamma * c_2))) + (self.omega * (h_1 * (self.gamma * c_2))))
+            # h_2 = self.n[i] * (( 1-g_2) * h_2 +  g_2 * h_2_intermediate)
+            h_2 = ((( 1-g_2) * h_2_intermediate) + (g_2 * h_2))* self.n[i]
 
         return h_2
 
@@ -73,3 +73,5 @@ class HgruCell(nn.Module):
     
 
 
+        self.w_gate_inh.register_hook(lambda grad: (grad + torch.transpose(grad,1,0))*0.5)
+        self.w_gate_exc.register_hook(lambda grad: (grad + torch.transpose(grad,1,0))*0.5)

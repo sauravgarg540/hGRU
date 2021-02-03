@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 
 class hGRU(nn.Module):
     
-    def __init__(self, config = None):
+    def __init__(self):
         
         super().__init__()
         self.timesteps = 8
