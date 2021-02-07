@@ -15,6 +15,7 @@ class hGRU(nn.Module):
         self.padding = kernel_size//2
         self.conv_feature_extractor = nn.Conv2d(1, 25, kernel_size= kernel_size, padding=self.padding)
         self.conv_feature_extractor.weight.data = torch.FloatTensor(np.load("gabor_serre.npy"))
+        nn.init.zeros_(self.conv_feature_extractor.bias)
         
         # HRGU
         self.hgru_unit = HgruCell()
@@ -29,7 +30,6 @@ class hGRU(nn.Module):
         nn.init.xavier_normal_(self.conv_readout.weight)
         nn.init.xavier_normal_(self.fc.weight)
         nn.init.constant_(self.fc.bias, 0)
-        nn.init.zeros_(self.conv_feature_extractor.bias)
 
     def forward(self, x):
 
