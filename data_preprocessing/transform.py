@@ -9,7 +9,7 @@ class Resize(object):
     interpolation: Default: PIL.Image.BILINEAR
     """
 
-    def __init__(self, size = 150, interpolation=Image.BICUBIC):
+    def __init__(self, size = 75, interpolation=Image.BICUBIC):
         self.size = size
         self.interpolation = interpolation
 
@@ -31,4 +31,4 @@ class ToTorchFormatTensor(object):
             # print(image.shape)
             image = torch.from_numpy(image).contiguous()
 
-        return image.float().div(255)
+        return image.float().div(255.0)
