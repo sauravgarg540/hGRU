@@ -1,27 +1,23 @@
-import torch
-import torch.nn as nn
-from model.hGRU_cell import HgruCell
-import torchvision
-import numpy as np
-from Dataset import CustomDataset
-
-from model import model
-import matplotlib.pyplot as plt
-from matplotlib.lines import Line2D
-from data_preprocessing.pre_process import return_image
-from data_preprocessing.transform import Resize, ToTorchFormatTensor
 import os
 import time
-
+import torch
+import torch.nn as nn
+import torchvision
+import numpy as np
 from statistics import mean
-from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
+import matplotlib.pyplot as plt
+from matplotlib.lines import Line2D
 from torch.utils.tensorboard import SummaryWriter
+from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
+
+from model import model
 from utils import configuration
-writer = SummaryWriter()
+from Dataset import CustomDataset
+from data_preprocessing.pre_process import return_image
+from data_preprocessing.transform import Resize, ToTorchFormatTensor
+
+
 torch.manual_seed(32)
-
-
-
 
 class AverageMeter(object):
     """Computes and stores the average and current value"""
@@ -44,131 +40,136 @@ class AverageMeter(object):
         self.avg = self.sum / self.count
         
 def evaluate_model(val_loader, model, criterion):
-    losses = AverageMeter()
-    accuracy = AverageMeter()
-    precision = AverageMeter()
-    recall = AverageMeter()
+    train_loss = AverageMeter()
+    train_accuracy = AverageMeter()
+    train_precision = AverageMeter()
+    train_recall = AverageMeter()
     model.eval()
     with torch.no_grad():
-        for i, (imgs, target) in enumerate(val_loader):
+        for i, (images, targets) in enumerate(val_loader):
          
-            target = target.cuda()
-            imgs = imgs.cuda()
+            targets = targets.cuda()
+            images = images.cuda()
             
-            output = model.forward(imgs)
+            output = model.forward(images)
             
-            loss = criterion(output, target)
-            losses.update(loss.item(), imgs.size(0))
+            loss = criterion(output, targets)
+            train_loss.update(loss.item(), images.size(0))
             
-            y_true = target.detach().cpu().numpy()
+            y_true = targets.detach().cpu().numpy()
             y_score =  torch.topk(output,1).indices.reshape(output.size(0)).detach().cpu().numpy()
             acc = accuracy_score(y_true, y_score)
-            accuracy.update(acc, imgs.size(0))
+            train_accuracy.update(acc, images.size(0))
             rec = recall_score(y_true, y_score)
             prec = precision_score(y_true, y_score)
-            precision.update(prec, imgs.size(0))
-            recall.update(rec, imgs.size(0))
+            train_precision.update(prec, images.size(0))
+            train_recall.update(rec, images.size(0))
               
-    print(f'Validation-->  Loss: {mean(losses.history):.3f}, Accuracy:{mean(accuracy.history):.3f}, Pecision:{mean(precision.history):.3f} , Recall:{mean(recall.history):.3f}')
-    return mean(losses.history), mean(accuracy.history), mean(precision.history), mean(recall.history)
+    print(f'Validation-->  Loss: {mean(train_loss.history):.3f}, Accuracy:{mean(train_accuracy.history):.3f}, Pecision:{mean(train_precision.history):.3f} , Recall:{mean(train_recall.history):.3f}')
+    return mean(train_loss.history), mean(train_accuracy.history), mean(train_precision.history), mean(train_recall.history)
 
 def get_data_loader(config):
 
-    data_transform = torchvision.transforms.Compose([Resize(), ToTorchFormatTensor()])
+    data_transform = torchvision.transforms.Compose([Resize(config['image_size']), ToTorchFormatTensor()])
     
     train_generator = CustomDataset(config['train_dataset'], transform = data_transform)
     val_generator = CustomDataset(config['validation_dataset'], transform = data_transform)
     
     train_loader = torch.utils.data.DataLoader(train_generator, batch_size= config['batch_size'], num_workers = 4)
     val_loader = torch.utils.data.DataLoader(val_generator, batch_size= config['batch_size'], num_workers = 4)
-    
+    print('training and validation dataloader created')
     return train_loader, val_loader 
 
 
 def main(config):
 
+    if config['save_summary']:
+        writer = SummaryWriter()
+    
     train_loader, val_loader = get_data_loader(config) 
 
     if torch.cuda.device_count() > 1:
         print(f"CUDA available, Model will now train on {torch.cuda.device_count()} GPU's")
-        hgru_model = nn.DataParallel(model.hGRU())
+        net = nn.DataParallel(model.hGRU())
     else:
-        hgru_model = model.hGRU()
+        net = model.hGRU()
 
     if torch.cuda.device_count() == 1:
         print(f"CUDA available, Model will now train on {torch.cuda.device_count()} GPU's")
-        hgru_model = model.hGRU()
-        hgru_model.cuda()
+        net = model.hGRU()
+        net.cuda()
 
-    exit()
+    if config['load_checkpoint']:
+        checkpnt = torch.load('checkpoints/checkpoint_Jan-31-2021_0010_.pt')
+        print(f"loading checkpoint saved after {checkpnt['epoch']}") 
+        net.load_state_dict(checkpnt['model_state_dict'])
 
+    print(f'Number of trainable parameters : {sum(p.numel() for p in net.parameters() if p.requires_grad)}')
 
-    #checkpnt = torch.load('checkpoints/checkpoint_Jan-31-2021_0010_.pt')
-    #hgru_model.load_state_dict(checkpnt['model_state_dict'])
-    # print(hgru_model)
     
-    # for name, param in hgru_model.named_parameters():
-    #     if param.requires_grad:
-    #         print(name, param.numel())
-    # print(sum(p.numel() for p in hgru_model.parameters() if p.requires_grad))
-    # exit()
-    criterion = torch.nn.CrossEntropyLoss()
-    optimizer = torch.optim.Adam(hgru_model.parameters(), lr=2e-3)
-    epochs = 2
-    #print_freq = 100
-    with torch.autograd.set_detect_anomaly(True):
-        validation_loss = AverageMeter()
-        validation_accuracy = AverageMeter()
+    train_loss = AverageMeter()
+    train_accuracy = AverageMeter()
+    validation_loss = AverageMeter()
+    validation_accuracy = AverageMeter()
+    if config['precision_recall']:
+        train_precision = AverageMeter()
+        train_recall = AverageMeter()          
         validation_precision = AverageMeter()
         validation_recall = AverageMeter()
-        for epoch in range(epochs):
-            hgru_model.train()
-            losses = AverageMeter()
-            accuracy = AverageMeter()
-            precision = AverageMeter()
-            recall = AverageMeter()
-            
-            end = time.perf_counter()
-                        
-            for i, (imgs, target) in enumerate(train_loader):
-                imgs = imgs.cuda()
-                target = target.cuda()
+
+    criterion = torch.nn.CrossEntropyLoss()
+    optimizer = torch.optim.Adam(net.parameters(), lr=config['learning_rate'])
+    
+    with torch.autograd.set_detect_anomaly(True):
+        for epoch in range(config['epochs']):
+            net.train()
+            for i, (images, targets) in enumerate(train_loader):
+                images = images.cuda()
+                targets = targets.cuda()
                 optimizer.zero_grad()
-                output  = hgru_model.forward(imgs)
-                loss = criterion(output, target)
+                output  = net.forward(images)
+                loss = criterion(output, targets)
                 
                 # add loss to history
-                losses.update(loss.item(), imgs.size(0))
+                train_loss.update(loss.item(), images.size(0))
                 
                 loss.backward()
                 optimizer.step()
                 
-                y_true = target.detach().cpu().numpy()
+                y_true = targets.detach().cpu().numpy()
                 y_score =  torch.topk(output,1).indices.reshape(output.size(0)).detach().cpu().numpy()
+                
                 acc = accuracy_score(y_true, y_score)
-                # rec = recall_score(y_true, y_score)
-                # prec = precision_score(y_true, y_score)
-                accuracy.update(acc, imgs.size(0))#add accuracy to history
-                # precision.update(prec, imgs.size(0))
-                # recall.update(rec, imgs.size(0))
-                # writer.add_scalar("Loss/train", loss.item(), epoch * len(train_loader) + i)
-                for n, p in hgru_model.named_parameters():
-                    if p.requires_grad:
-                        writer.add_scalar(f"{n}/train", p.grad.abs().mean(), epoch * len(train_loader) + i)
+                train_accuracy.update(acc, images.size(0))
+
+                if config['precision_recall']:
+                    rec = recall_score(y_true, y_score)
+                    prec = precision_score(y_true, y_score)
+                    train_precision.update(prec, images.size(0))
+                    train_recall.update(rec, images.size(0))
+
+                if config['save_summary']:
+                    writer.add_scalar("Loss/train", loss.item(), epoch * len(train_loader) + i)
+                    for n, p in net.named_parameters():
+                        if p.requires_grad:
+                            writer.add_scalar(f"{n}/train", p.grad.abs().mean(), epoch * len(train_loader) + i)
                 
                 if i%1000 ==0:
-                    writer.add_scalar(f"Loss_(mean)/train", mean(losses.history),epoch * len(train_loader) + i)
-                    writer.add_scalar(f"Accuracy_(mean)/train", mean(accuracy.history), epoch * len(train_loader) + i)
-                    print(f'Epoch:{epoch} --> Iteration {i}/{len(train_loader)} Loss: {mean(losses.history):.3f},  Accuracy: {mean(accuracy.history):.3f}') 
-                #   print(f'Epoch:{epoch} --> Iteration {i}/{len(train_loader)} Loss: {mean(losses.history):.3f},  Accuracy: {mean(accuracy.history):.3f},  Precision: {mean(precision.history):.3f},'
-                #         f'  Recall: {mean(recall.history):.3f}')  
+                    if config['save_summary']:
+                        writer.add_scalar(f"Loss_(mean)/train", mean(train_loss.history),epoch * len(train_loader) + i)
+                        writer.add_scalar(f"Accuracy_(mean)/train", mean(train_accuracy.history), epoch * len(train_loader) + i)
+                    if config['precision_recall']:
+                        print(f'Epoch:{epoch} --> Iteration {i}/{len(train_loader)} Loss: {mean(train_loss.history):.3f},  Accuracy: {mean(train_accuracy.history):.3f},'
+                            f'Precision: {mean(train_precision.history):.3f}, Recall: {mean(train_recall.history):.3f}') 
+                    else: 
+                        print(f'Epoch:{epoch} --> Iteration {i}/{len(train_loader)} Loss: {mean(train_loss.history):.3f},  Accuracy: {mean(train_accuracy.history):.3f}') 
                         
                 
-            writer.add_scalar("per_epoch_Loss(mean)/train", mean(losses.history), epoch)
-            writer.add_scalar("per_epoch_Loss(accuracy)/train", mean(accuracy.history), epoch)   
-            # print(f'Epoch:{epoch} --> Loss: {mean(losses.history):.3f},  Accuracy: {mean(accuracy.history):.3f},  Precision: {mean(precision.history):.3f},'
-            # f'  Recall: {mean(recall.history):.3f}')
-            print(f'Epoch:{epoch} --> Loss: {mean(losses.history):.3f},  Accuracy: {mean(accuracy.history):.3f}')  
+            writer.add_scalar("per_epoch_Loss(mean)/train", mean(train_loss.history), epoch)
+            writer.add_scalar("per_epoch_Loss(train_accuracy)/train", mean(train_accuracy.history), epoch)   
+            # print(f'Epoch:{epoch} --> Loss: {mean(train_loss.history):.3f},  Accuracy: {mean(train_accuracy.history):.3f},  Precision: {mean(train_precision.history):.3f},'
+            # f'  Recall: {mean(train_recall.history):.3f}')
+            print(f'Epoch:{epoch} --> Loss: {mean(train_loss.history):.3f},  Accuracy: {mean(train_accuracy.history):.3f}')  
             
             
             
@@ -176,15 +177,15 @@ def main(config):
             timestamp = time.strftime('%b-%d-%Y_%H%M', t)
             torch.save({
             'epoch': epoch,
-            'model_state_dict': hgru_model.state_dict(),
+            'model_state_dict': net.state_dict(),
             }, f"checkpoints/checkpoint_{epoch}_" + timestamp+"_.pt")
             
-            np.save(f'dump/accuracy_{epoch}', np.array(accuracy.history))
-            np.save(f'dump/loss_{epoch}', np.array(losses.history))
-            np.save(f'dump/precision_{epoch}', np.array(precision.history))
-            np.save(f'dump/recall_{epoch}', np.array(recall.history))
+            np.save(f'dump/accuracy_{epoch}', np.array(train_accuracy.history))
+            np.save(f'dump/loss_{epoch}', np.array(train_loss.history))
+            np.save(f'dump/precision_{epoch}', np.array(train_precision.history))
+            np.save(f'dump/recall_{epoch}', np.array(train_recall.history))
             #print("validation after {epoch} epochs")
-            val_loss, val_accuracy, val_precision, val_recall = evaluate_model(val_loader, hgru_model, criterion)
+            val_loss, val_accuracy, val_precision, val_recall = evaluate_model(val_loader, net, criterion)
             validation_loss.update(val_loss,epoch+1)
             validation_accuracy.update(val_accuracy,epoch+1)
             validation_precision.update(val_precision,epoch+1)
@@ -196,7 +197,7 @@ def main(config):
     
     writer.flush()
     Path = "weights/trained_model"
-    torch.save(hgru_model.module, Path)
+    torch.save(net.module, Path)
 # # np.array(f_val).dump(open("{}.npy".format(args.name),'w')))
     
 
