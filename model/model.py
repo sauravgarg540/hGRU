@@ -3,10 +3,14 @@ import torch
 import torch.nn as nn
 from model.hGRU_cell import HgruCell
 import matplotlib.pyplot as plt
+from utils import initialization as ini
+
+
+
 
 class hGRU(nn.Module):
     
-    def __init__(self):
+    def __init__(self,config):
         
         super().__init__()
         self.timesteps = 8
@@ -24,14 +28,12 @@ class hGRU(nn.Module):
         self.conv_readout = nn.Conv2d(25, 2, kernel_size=1, bias=False)
         self.bn2_1 = nn.BatchNorm2d(25, eps=1e-3, momentum=0.99)
         self.bn2_2 = nn.BatchNorm2d(2, eps=1e-3, momentum=0.99)
-        self.maxpool = nn.MaxPool2d(150,stride = 1)
+        self.maxpool = nn.MaxPool2d(config["image_size"],stride = 1)
         self.flat = nn.Flatten()
         self.fc = nn.Linear(2, 2)
 
         # Weights initialization
-        nn.init.xavier_normal_(self.conv_readout.weight)
-        nn.init.xavier_normal_(self.fc.weight)
-        nn.init.constant_(self.fc.bias, 0)
+        ini.xavier_normal_(self.conv_readout.weight)
 
     def forward(self, x):
 

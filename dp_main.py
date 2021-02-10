@@ -17,7 +17,13 @@ from data_preprocessing.pre_process import return_image
 from data_preprocessing.transform import Resize, ToTorchFormatTensor
 
 
-torch.manual_seed(32)
+torch.manual_seed(20)
+
+def check_path(path):
+    if not os.path.exists(path):
+        print(f'{path} not found, creating the path')
+        os.makedirs(path)
+
 
 class AverageMeter(object):
     """Computes and stores the average and current value"""
@@ -70,13 +76,17 @@ def evaluate_model(val_loader, model, criterion):
 
 def get_data_loader(config):
 
+    check_path(config['checkpoint_path'])
+    check_path(config['dump_path'])
+    check_path(config['weight_path'])
+
     data_transform = torchvision.transforms.Compose([Resize(config['image_size']), ToTorchFormatTensor()])
     
     train_generator = CustomDataset(config['train_dataset'], transform = data_transform)
     val_generator = CustomDataset(config['validation_dataset'], transform = data_transform)
     
-    train_loader = torch.utils.data.DataLoader(train_generator, batch_size= config['batch_size'], num_workers = 4)
-    val_loader = torch.utils.data.DataLoader(val_generator, batch_size= config['batch_size'], num_workers = 4)
+    train_loader = torch.utils.data.DataLoader(train_generator, batch_size= config['batch_size'], num_workers = 4, shuffle = True)
+    val_loader = torch.utils.data.DataLoader(val_generator, batch_size= config['batch_size'], num_workers = 4, shuffle = True)
     print('training and validation dataloader created')
     return train_loader, val_loader 
 
@@ -90,13 +100,12 @@ def main(config):
 
     if torch.cuda.device_count() > 1:
         print(f"CUDA available, Model will now train on {torch.cuda.device_count()} GPU's")
-        net = nn.DataParallel(model.hGRU())
+        net = nn.DataParallel(model.hGRU(config))
     else:
-        net = model.hGRU()
+        net = model.hGRU(config)
 
     if torch.cuda.device_count() == 1:
         print(f"CUDA available, Model will now train on {torch.cuda.device_count()} GPU's")
-        net = model.hGRU()
         net.cuda()
 
     if config['load_checkpoint']:
@@ -121,6 +130,7 @@ def main(config):
     optimizer = torch.optim.Adam(net.parameters(), lr=config['learning_rate'])
     
     with torch.autograd.set_detect_anomaly(True):
+        print("starting epochs")
         for epoch in range(config['epochs']):
             net.train()
             for i, (images, targets) in enumerate(train_loader):
@@ -129,16 +139,12 @@ def main(config):
                 optimizer.zero_grad()
                 output  = net.forward(images)
                 loss = criterion(output, targets)
-                
-                # add loss to history
-                train_loss.update(loss.item(), images.size(0))
-                
                 loss.backward()
                 optimizer.step()
                 
+                train_loss.update(loss.item(), images.size(0))
                 y_true = targets.detach().cpu().numpy()
                 y_score =  torch.topk(output,1).indices.reshape(output.size(0)).detach().cpu().numpy()
-                
                 acc = accuracy_score(y_true, y_score)
                 train_accuracy.update(acc, images.size(0))
 
@@ -154,22 +160,24 @@ def main(config):
                         if p.requires_grad:
                             writer.add_scalar(f"{n}/train", p.grad.abs().mean(), epoch * len(train_loader) + i)
                 
-                if i%1000 ==0:
+                if i%config['print_frequency'] ==0:
                     if config['save_summary']:
                         writer.add_scalar(f"Loss_(mean)/train", mean(train_loss.history),epoch * len(train_loader) + i)
                         writer.add_scalar(f"Accuracy_(mean)/train", mean(train_accuracy.history), epoch * len(train_loader) + i)
                     if config['precision_recall']:
-                        print(f'Epoch:{epoch} --> Iteration {i}/{len(train_loader)} Loss: {mean(train_loss.history):.3f},  Accuracy: {mean(train_accuracy.history):.3f},'
+                        print(f'Epoch:{epoch} --> Iteration {i}/{len(train_loader)} Loss: {mean(train_loss.history):.3f},  Accuracy: {mean(train_accuracy.history):.3f}, '
                             f'Precision: {mean(train_precision.history):.3f}, Recall: {mean(train_recall.history):.3f}') 
+                        
                     else: 
                         print(f'Epoch:{epoch} --> Iteration {i}/{len(train_loader)} Loss: {mean(train_loss.history):.3f},  Accuracy: {mean(train_accuracy.history):.3f}') 
-                        
-                
-            writer.add_scalar("per_epoch_Loss(mean)/train", mean(train_loss.history), epoch)
-            writer.add_scalar("per_epoch_Loss(train_accuracy)/train", mean(train_accuracy.history), epoch)   
-            # print(f'Epoch:{epoch} --> Loss: {mean(train_loss.history):.3f},  Accuracy: {mean(train_accuracy.history):.3f},  Precision: {mean(train_precision.history):.3f},'
-            # f'  Recall: {mean(train_recall.history):.3f}')
-            print(f'Epoch:{epoch} --> Loss: {mean(train_loss.history):.3f},  Accuracy: {mean(train_accuracy.history):.3f}')  
+            if config['save_summary']:   
+                writer.add_scalar("per_epoch_Loss(mean)/train", mean(train_loss.history), epoch)
+                writer.add_scalar("per_epoch_Loss(train_accuracy)/train", mean(train_accuracy.history), epoch) 
+                if config['precision_recall']:  
+                    print(f'Epoch:{epoch} --> Loss: {mean(train_loss.history):.3f},  Accuracy: {mean(train_accuracy.history):.3f}, '
+                    f'Precision: {mean(train_precision.history):.3f}, Recall: {mean(train_recall.history):.3f}')
+                else:
+                    print(f'Epoch:{epoch} --> Loss: {mean(train_loss.history):.3f},  Accuracy: {mean(train_accuracy.history):.3f}')  
             
             
             
@@ -179,25 +187,33 @@ def main(config):
             'epoch': epoch,
             'model_state_dict': net.state_dict(),
             }, f"checkpoints/checkpoint_{epoch}_" + timestamp+"_.pt")
-            
-            np.save(f'dump/accuracy_{epoch}', np.array(train_accuracy.history))
-            np.save(f'dump/loss_{epoch}', np.array(train_loss.history))
-            np.save(f'dump/precision_{epoch}', np.array(train_precision.history))
-            np.save(f'dump/recall_{epoch}', np.array(train_recall.history))
-            #print("validation after {epoch} epochs")
+
+            if(config['save_dump']):
+                np.save(f'dump/accuracy_{epoch}', np.array(train_accuracy.history))
+                np.save(f'dump/loss_{epoch}', np.array(train_loss.history))
+                if config['precision_recall']: 
+                    np.save(f'dump/precision_{epoch}', np.array(train_precision.history))
+                    np.save(f'dump/recall_{epoch}', np.array(train_recall.history))
+
             val_loss, val_accuracy, val_precision, val_recall = evaluate_model(val_loader, net, criterion)
             validation_loss.update(val_loss,epoch+1)
             validation_accuracy.update(val_accuracy,epoch+1)
-            validation_precision.update(val_precision,epoch+1)
-            validation_recall.update(val_precision,epoch+1)
-    np.save(f'dump/val_accuracy', np.array(validation_accuracy.history))
-    np.save(f'dump/val_loss', np.array(validation_loss.history))
-    np.save(f'dump/val_precision', np.array(validation_precision.history))
-    np.save(f'dump/val_recall', np.array(validation_recall.history))
+            if config['precision_recall']: 
+                validation_precision.update(val_precision,epoch+1)
+                validation_recall.update(val_precision,epoch+1)
+
+    if(config['save_dump']):
+        dump_path = config['dump_path']
+        np.save(f'{dump_path}/val_accuracy', np.array(validation_accuracy.history))
+        np.save(f'{dump_path}/val_loss', np.array(validation_loss.history))
+        if config['precision_recall']: 
+            np.save(f'{dump_path}/val_precision', np.array(validation_precision.history))
+            np.save(f'{dump_path}/val_recall', np.array(validation_recall.history))
     
     writer.flush()
-    Path = "weights/trained_model"
-    torch.save(net.module, Path)
+    checkpoint_path = config['checkpoint_path']
+    checkpoint_path = "{checkpoint_path}/{timestamp}"
+    torch.save(net.module, checkpoint_path)
 # # np.array(f_val).dump(open("{}.npy".format(args.name),'w')))
     
 

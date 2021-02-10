@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
+from utils import initialization as ini
 
 class HgruCell(nn.Module):
     
@@ -27,24 +28,25 @@ class HgruCell(nn.Module):
 
         # making W symmetric across the channel.
         # The HxW filter is not symmetric rather it is symmetric across channel decreasing number of parameters to be learned by half.
-        nn.init.xavier_uniform_(self.w_gate)
+        ini.xavier_uniform_(self.w_gate)
         self.w_gate = nn.Parameter(0.5* (self.w_gate + torch.transpose(self.w_gate, 0,1)))
         self.w_gate.register_hook(lambda grad: (grad + torch.transpose(grad,1,0))*0.5)
         
-        nn.init.xavier_uniform_(self.gain_kernel.weight)
-        nn.init.xavier_uniform_(self.mix_kernel.weight)
-        nn.init.xavier_uniform_(self.alpha)
-        nn.init.xavier_uniform_(self.gamma)
-        nn.init.xavier_uniform_(self.kappa)
-        nn.init.xavier_uniform_(self.omega)
-        nn.init.xavier_uniform_(self.mu)
+        ini.xavier_uniform_(self.gain_kernel.weight)
+        ini.xavier_uniform_(self.mix_kernel.weight)
+        ini.xavier_uniform_(self.alpha)
+        ini.xavier_uniform_(self.gamma)
+        ini.xavier_uniform_(self.kappa)
+        ini.xavier_uniform_(self.omega)
+        ini.xavier_uniform_(self.mu)
         
     def forward(self, x, timesteps):
         h_2 = None
         for i in range(timesteps):
             if (i==0):
-                h_2 = nn.init.xavier_uniform_(torch.empty_like(x))
+                h_2 = ini.xavier_uniform_(torch.empty_like(x))
             g1_intermediate = self.gain_kernel(h_2)
+            print(g1_intermediate[1,1])
             g_1 = torch.sigmoid(g1_intermediate + self.gain_bias)
             c_1 = F.conv2d(h_2*g_1, self.w_gate, padding =self.padding)
             h_1 = torch.tanh(x - ((self.alpha * h_2 + self.mu)*c_1))
