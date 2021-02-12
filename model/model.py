@@ -4,6 +4,7 @@ import torch.nn as nn
 from model.hGRU_cell import HgruCell
 import matplotlib.pyplot as plt
 from utils import initialization as ini
+import matplotlib.pyplot as plt
 
 
 
@@ -25,7 +26,7 @@ class hGRU(nn.Module):
         self.hgru_unit = HgruCell()
         
         # readout stage
-        self.conv_readout = nn.Conv2d(25, 2, kernel_size=1, bias=False)
+        self.conv_readout = nn.Conv2d(25, 2, kernel_size=1)
         self.bn2_1 = nn.BatchNorm2d(25, eps=1e-3, momentum=0.99)
         self.bn2_2 = nn.BatchNorm2d(2, eps=1e-3, momentum=0.99)
         self.maxpool = nn.MaxPool2d(config["image_size"],stride = 1)
@@ -34,6 +35,10 @@ class hGRU(nn.Module):
 
         # Weights initialization
         ini.xavier_normal_(self.conv_readout.weight)
+        nn.init.zeros_(self.conv_readout.bias)
+        nn.init.xavier_normal_(self.fc.weight)
+        nn.init.zeros_(self.fc.bias)
+        
 
     def forward(self, x):
 
@@ -42,7 +47,7 @@ class hGRU(nn.Module):
         h_2 = self.hgru_unit(x, timesteps = self.timesteps)
         h_2 = self.bn2_1(h_2)
         x = self.conv_readout(h_2) #[1,2,150,150]
-        #x =torch.max(torch.max(x,2).values,2).values #global maxpooling
+        # x =torch.max(torch.max(x,2).values,2).values #global maxpooling
         x = self.maxpool(x)
         x = self.bn2_2(x)
         x = self.flat(x)

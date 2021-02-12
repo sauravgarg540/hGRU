@@ -17,7 +17,7 @@ from data_preprocessing.pre_process import return_image
 from data_preprocessing.transform import Resize, ToTorchFormatTensor
 
 
-torch.manual_seed(20)
+torch.manual_seed(42)
 
 def check_path(path):
     if not os.path.exists(path):
