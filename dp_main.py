@@ -6,6 +6,7 @@ import torchvision
 import numpy as np
 from statistics import mean
 import matplotlib.pyplot as plt
+from utils import nadam
 from matplotlib.lines import Line2D
 from torch.utils.tensorboard import SummaryWriter
 from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
@@ -127,7 +128,7 @@ def main(config):
         validation_recall = AverageMeter()
 
     criterion = torch.nn.CrossEntropyLoss()
-    optimizer = torch.optim.Adam(net.parameters(), lr=config['learning_rate'])
+    optimizer = nadam.Nadam(net.parameters(), lr=config['learning_rate'])
     
     with torch.autograd.set_detect_anomaly(True):
         print("starting epochs")

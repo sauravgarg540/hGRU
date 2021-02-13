@@ -29,6 +29,7 @@ class hGRU(nn.Module):
         self.conv_readout = nn.Conv2d(25, 2, kernel_size=1)
         self.bn2_1 = nn.BatchNorm2d(25, eps=1e-3, momentum=0.99)
         self.bn2_2 = nn.BatchNorm2d(2, eps=1e-3, momentum=0.99)
+        self.bn1_2 = nn.BatchNorm1d(2, eps=1e-3, momentum=0.99)
         self.maxpool = nn.MaxPool2d(config["image_size"],stride = 1)
         self.flat = nn.Flatten()
         self.fc = nn.Linear(2, 2)
@@ -47,7 +48,7 @@ class hGRU(nn.Module):
         h_2 = self.hgru_unit(x, timesteps = self.timesteps)
         h_2 = self.bn2_1(h_2)
         x = self.conv_readout(h_2) #[1,2,150,150]
-        # x =torch.max(torch.max(x,2).values,2).values #global maxpooling
+        # x = torch.max(torch.max(x,2).values,2).values #global maxpooling
         x = self.maxpool(x)
         x = self.bn2_2(x)
         x = self.flat(x)

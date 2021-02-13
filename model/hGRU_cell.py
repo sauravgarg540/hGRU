@@ -14,7 +14,7 @@ class HgruCell(nn.Module):
         self.mix_kernel = nn.Conv2d(num_filter,num_filter,1, padding = 0, bias = False)
         
         # Chronos initialized for bias
-        bias_init = -np.log(torch.FloatTensor(1,num_filter,1,1).uniform_(1, self.timesteps - 1))
+        bias_init = -np.log(torch.distributions.Uniform(1, self.timesteps).sample((1,num_filter,1,1)))
         self.gain_bias = nn.Parameter(bias_init)
         self.mix_bias = nn.Parameter(-bias_init)
         self.w_gate = nn.Parameter(torch.empty(num_filter , num_filter , kernel_size, kernel_size))
@@ -24,7 +24,7 @@ class HgruCell(nn.Module):
         self.gamma = nn.Parameter(torch.empty((1,num_filter,1,1)))
         self.kappa = nn.Parameter(torch.empty((1,num_filter,1,1)))
         self.omega = nn.Parameter(torch.empty((1,num_filter,1,1)))
-        self.n = nn.Parameter(torch.FloatTensor(self.timesteps).uniform_(-0.5, 0.5))
+        self.n = nn.Parameter(torch.distributions.Uniform(-2, 2).sample((1,8)))
 
         # making W symmetric across the channel.
         # The HxW filter is not symmetric rather it is symmetric across channel decreasing number of parameters to be learned by half.
@@ -52,6 +52,7 @@ class HgruCell(nn.Module):
             g2_intermediate = self.mix_kernel(h_1) 
             g_2 = torch.sigmoid(g2_intermediate + self.mix_bias)
             c_2 = F.conv2d(h_1, self.w_gate, padding = self.padding)
-            h_2_intermediate = torch.tanh((self.kappa * (h_1 + (self.gamma * c_2))) + (self.omega * (h_1 * (self.gamma * c_2))))
-            h_2 = ((( 1-g_2) * h_2_intermediate) + (g_2 * h_2))* self.n[i]
+            h_2_intermediate = torch.tanh((self.kappa * h_1) + (self.gamma * c_2) + (self.omega * (h_1 * c_2)))
+            h_2 = ((( 1-g_2) * h_2) + (g_2 * h_2_intermediate))
+            h_2 = h_2 * self.n[0][i]
         return h_2

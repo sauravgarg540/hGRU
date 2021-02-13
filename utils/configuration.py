@@ -10,7 +10,7 @@ def config():
     parser.add_argument('-lr,','--learning_rate',type = float,default = 0.001,help='set up learning rate')
     parser.add_argument('-e,','--epochs',type = int,default = 2,help='set up number of epochs')
     parser.add_argument('-bs,','--batch_size',type = int,default = 32,help='set batch size')
-    parser.add_argument('-is,','--image_size',type = int,default = 150,help='Set image size for the model')
+    parser.add_argument('-is,','--image_size',type = int,default = 75,help='Set image size for the model')
     parser.add_argument('-sc,','--save_checkpoint',type = bool,default = False,help='Set image size for the model')
     parser.add_argument('-pr', '--precision_recall', type = bool, default=False, help='Print precision and recall')
     parser.add_argument('-load_checkpoint', type = bool, default=False, help='Whether to load checlpoint')
