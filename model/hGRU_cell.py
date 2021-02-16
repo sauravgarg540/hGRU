@@ -39,20 +39,20 @@ class HgruCell(nn.Module):
         ini.xavier_uniform_(self.kappa)
         ini.xavier_uniform_(self.omega)
         
-    def forward(self, x, timesteps):
-        h_2 = None
-        for i in range(timesteps):
-            if (i==0):
-                h_2 = ini.xavier_uniform_(torch.empty(25,75,75,32))
-                h_2 = h_2.permute(3,0,1,2).cuda()
-            g1_intermediate = self.gain_kernel(h_2)
-            g_1 = torch.sigmoid(g1_intermediate + self.gain_bias)
-            c_1 = F.conv2d(h_2*g_1, self.w_gate, padding =self.padding)
-            h_1 = torch.tanh(x - ((self.alpha*h_2 + self.mu)*c_1))
-            g2_intermediate = self.mix_kernel(h_1) 
-            g_2 = torch.sigmoid(g2_intermediate + self.mix_bias)
-            c_2 = F.conv2d(h_1, self.w_gate, padding = self.padding)
-            h_2_intermediate = torch.tanh((self.kappa * h_1) + (self.gamma * c_2) + (self.omega * (h_1 * c_2)))
-            h_2 = ((( 1-g_2) * h_2) + (g_2 * h_2_intermediate))
-            h_2 = h_2 * self.n[0][i]
+    def forward(self, x, timesteps, h_2):
+       
+        if h_2 == None:
+            # if (i==0):
+            h_2 = ini.xavier_uniform_(torch.empty(25,150,150,10))
+            h_2 = h_2.permute(3,0,1,2).cuda()
+        g1_intermediate = self.gain_kernel(h_2)
+        g_1 = torch.sigmoid(g1_intermediate + self.gain_bias)
+        c_1 = F.conv2d(h_2*g_1, self.w_gate, padding =self.padding)
+        h_1 = torch.tanh(x - ((self.alpha*h_2 + self.mu)*c_1))
+        g2_intermediate = self.mix_kernel(h_1) 
+        g_2 = torch.sigmoid(g2_intermediate + self.mix_bias)
+        c_2 = F.conv2d(h_1, self.w_gate, padding = self.padding)
+        h_2_intermediate = torch.tanh((self.kappa * h_1) + (self.gamma * c_2) + (self.omega * (h_1 * c_2)))
+        h_2 = ((( 1-g_2) * h_2) + (g_2 * h_2_intermediate))
+        h_2 = h_2 * self.n[0][timesteps]
         return h_2

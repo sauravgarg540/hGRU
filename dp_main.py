@@ -6,7 +6,7 @@ import torchvision
 import numpy as np
 from statistics import mean
 import matplotlib.pyplot as plt
-from utils import nadam
+#from utils import nadam
 from matplotlib.lines import Line2D
 from torch.utils.tensorboard import SummaryWriter
 from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
@@ -46,18 +46,18 @@ class AverageMeter(object):
         self.count += n
         self.avg = self.sum / self.count
         
-def evaluate_model(val_loader, model, criterion):
+def evaluate_model(val_loader, model, criterion, config):
     train_loss = AverageMeter()
     train_accuracy = AverageMeter()
-    train_precision = AverageMeter()
-    train_recall = AverageMeter()
+    if config["precision_recall"]
+        train_precision = AverageMeter()
+        train_recall = AverageMeter()
     model.eval()
     with torch.no_grad():
         for i, (images, targets) in enumerate(val_loader):
          
             targets = targets.cuda()
-            images = images.cuda()
-            
+            images = images.cuda()  
             output = model.forward(images)
             
             loss = criterion(output, targets)
@@ -67,13 +67,20 @@ def evaluate_model(val_loader, model, criterion):
             y_score =  torch.topk(output,1).indices.reshape(output.size(0)).detach().cpu().numpy()
             acc = accuracy_score(y_true, y_score)
             train_accuracy.update(acc, images.size(0))
-            rec = recall_score(y_true, y_score)
-            prec = precision_score(y_true, y_score)
-            train_precision.update(prec, images.size(0))
-            train_recall.update(rec, images.size(0))
-              
-    print(f'Validation-->  Loss: {mean(train_loss.history):.3f}, Accuracy:{mean(train_accuracy.history):.3f}, Pecision:{mean(train_precision.history):.3f} , Recall:{mean(train_recall.history):.3f}')
-    return mean(train_loss.history), mean(train_accuracy.history), mean(train_precision.history), mean(train_recall.history)
+            if config["precision_recall"]
+                rec = recall_score(y_true, y_score)
+                prec = precision_score(y_true, y_score)
+                train_precision.update(prec, images.size(0))
+                train_recall.update(rec, images.size(0))
+    if config["precision_recall"]         
+        print(f'Validation-->  Loss: {mean(train_loss.history):.3f}, Accuracy:{mean(train_accuracy.history):.3f}, Pecision:{mean(train_precision.history):.3f} , Recall:{mean(train_recall.history):.3f}')
+    else:
+        print(f'Validation-->  Loss: {mean(train_loss.history):.3f}, Accuracy:{mean(train_accuracy.history):.3f}')
+    
+    if config["precision_recall"]:
+        return mean(train_loss.history), mean(train_accuracy.history), mean(train_precision.history), mean(train_recall.history)
+    else:
+        return mean(train_loss.history), mean(train_accuracy.history))
 
 def get_data_loader(config):
 
@@ -93,6 +100,7 @@ def get_data_loader(config):
 
 
 def main(config):
+    writer = None
 
     if config['save_summary']:
         writer = SummaryWriter()
@@ -101,22 +109,24 @@ def main(config):
 
     if torch.cuda.device_count() > 1:
         print(f"CUDA available, Model will now train on {torch.cuda.device_count()} GPU's")
-        net = nn.DataParallel(model.hGRU(config))
+        net = nn.DataParallel(model.hGRU(config, writer))
     else:
-        net = model.hGRU(config)
+        net = model.hGRU(config, writer)
 
-    if torch.cuda.device_count() == 1:
+    if torch.cuda.device_count() >= 1:
         print(f"CUDA available, Model will now train on {torch.cuda.device_count()} GPU's")
         net.cuda()
 
     if config['load_checkpoint']:
-        checkpnt = torch.load('checkpoints/checkpoint_Jan-31-2021_0010_.pt')
-        print(f"loading checkpoint saved after {checkpnt['epoch']}") 
+        checkpnt = torch.load('checkpoints/checkpoint_0_Feb-15-2021_0305_.pt')
+        print(f"loading checkpoint saved after {checkpnt['epoch']+1} epoch") 
         net.load_state_dict(checkpnt['model_state_dict'])
 
     print(f'Number of trainable parameters : {sum(p.numel() for p in net.parameters() if p.requires_grad)}')
 
-    
+    epochs = checkpnt['epoch']
+    if config['load_checkpoint']:
+        epochs = epochs - checkpnt['epoch']+1
     train_loss = AverageMeter()
     train_accuracy = AverageMeter()
     validation_loss = AverageMeter()
@@ -128,17 +138,20 @@ def main(config):
         validation_recall = AverageMeter()
 
     criterion = torch.nn.CrossEntropyLoss()
-    optimizer = nadam.Nadam(net.parameters(), lr=config['learning_rate'])
-    
+    #optimizer = nadam.Nadam(net.parameters(), lr=config['learning_rate'])
+    optimizer = torch.optim.Adam(net.parameters(), lr=config['learning_rate'])
+    if config['load_checkpoint']:
+        print("Evaluating model after loding checkpoint") 
+        evaluate_model(val_loader, net, criterion, config)
     with torch.autograd.set_detect_anomaly(True):
         print("starting epochs")
-        for epoch in range(config['epochs']):
+        for epoch in range(epochs):
             net.train()
             for i, (images, targets) in enumerate(train_loader):
                 images = images.cuda()
                 targets = targets.cuda()
                 optimizer.zero_grad()
-                output  = net.forward(images)
+                output  = net.forward(images,epoch * len(train_loader) + i)
                 loss = criterion(output, targets)
                 loss.backward()
                 optimizer.step()
@@ -156,6 +169,9 @@ def main(config):
                     train_recall.update(rec, images.size(0))
 
                 if config['save_summary']:
+                    if i%100 ==0:
+                        img_grid = torchvision.utils.make_grid(images[0], pad_value = 10, nrow=10)
+                        writer.add_image('training_images', img_grid, epoch * len(train_loader) + i)
                     writer.add_scalar("Loss/train", loss.item(), epoch * len(train_loader) + i)
                     for n, p in net.named_parameters():
                         if p.requires_grad:
@@ -195,8 +211,13 @@ def main(config):
                 if config['precision_recall']: 
                     np.save(f'dump/precision_{epoch}', np.array(train_precision.history))
                     np.save(f'dump/recall_{epoch}', np.array(train_recall.history))
+                
+            
+            if config["precision_recall"]:
+                val_loss, val_accuracy, val_precision, val_recall = evaluate_model(val_loader, net, criterion, config)
+            else:
+                val_loss, val_accuracy = evaluate_model(val_loader, net, criterion, config)
 
-            val_loss, val_accuracy, val_precision, val_recall = evaluate_model(val_loader, net, criterion)
             validation_loss.update(val_loss,epoch+1)
             validation_accuracy.update(val_accuracy,epoch+1)
             if config['precision_recall']: 
@@ -212,9 +233,9 @@ def main(config):
             np.save(f'{dump_path}/val_recall', np.array(validation_recall.history))
     
     writer.flush()
-    checkpoint_path = config['checkpoint_path']
-    checkpoint_path = "{checkpoint_path}/{timestamp}"
-    torch.save(net.module, checkpoint_path)
+    weight_path = config['weight_path']
+    checkpoint_path = f"{weight_path}/{timestamp}"
+    torch.save(net, checkpoint_path)
 # # np.array(f_val).dump(open("{}.npy".format(args.name),'w')))
     
 
@@ -222,6 +243,7 @@ if __name__ == "__main__":
 
     parser = configuration.config()
     config = parser.parse_args()
+    print(vars(config))
     main(vars(config))
     
     
