@@ -23,6 +23,6 @@ def convert_array_to_image(source, destination):
                 np.save(label_directory +'/labels.npy', labels)
 
 
-source = "D:/Study/ULMUniversity/Thesis/dataset/pf14/curv_contour_length_14_full/val"
-destination = "D:/Study/ULMUniversity/Thesis/dataset/pf14_with_images/curv_contour_length_14_full/val/"
+source = "../dataset/pf14/curv_contour_length_14_full/val"
+destination = "../dataset/pf14_with_images/curv_contour_length_14_full/val/"
 convert_array_to_image(source, destination)

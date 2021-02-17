@@ -17,6 +17,7 @@ class hGRU(nn.Module):
         super().__init__()
         self.writer = writer
         self.timesteps = 8
+        
         # Feature extraction stage
         kernel_size = 7
         self.padding = kernel_size//2
@@ -31,7 +32,6 @@ class hGRU(nn.Module):
         self.conv_readout = nn.Conv2d(25, 2, kernel_size=1)
         self.bn2_1 = nn.BatchNorm2d(25, eps=1e-3, momentum=0.99)
         self.bn2_2 = nn.BatchNorm2d(2, eps=1e-3, momentum=0.99)
-        # self.bn1_2 = nn.BatchNorm1d(2, eps=1e-3, momentum=0.99)
         self.maxpool = nn.MaxPool2d(config["image_size"],stride = 1)
         self.flat = nn.Flatten()
         self.fc = nn.Linear(2, 2)

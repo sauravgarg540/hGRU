@@ -52,13 +52,11 @@ class AverageMeter(object):
         
 
 def get_data_loader(config):
-
+    "Create Dataloaders"
 
     data_transform = torchvision.transforms.Compose([Resize(config['image_size']), ToTorchFormatTensor()])
-    
     train_generator = CustomDataset(config['train_dataset'], transform = data_transform)
     val_generator = CustomDataset(config['validation_dataset'], transform = data_transform)
-    
     train_loader = torch.utils.data.DataLoader(train_generator, batch_size= config['batch_size'], num_workers = 4, shuffle = True)
     val_loader = torch.utils.data.DataLoader(val_generator, batch_size= config['batch_size'], num_workers = 4, shuffle = True)
     print('training and validation dataloader created')
@@ -213,7 +211,7 @@ if __name__ == "__main__":
 
     parser = configuration.config()
     config = parser.parse_args()
-    # print(vars(config))
+    print(vars(config))
     main(vars(config))
     
     

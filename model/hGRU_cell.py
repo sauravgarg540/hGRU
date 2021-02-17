@@ -42,7 +42,6 @@ class HgruCell(nn.Module):
     def forward(self, x, timesteps, h_2):
        
         if h_2 == None:
-            # if (i==0):
             h_2 = ini.xavier_uniform_(torch.empty(x.size(1),x.size(2),x.size(3),x.size(0)))
             h_2 = h_2.permute(3,0,1,2).cuda()
         g1_intermediate = self.gain_kernel(h_2)
