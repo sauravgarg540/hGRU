@@ -49,7 +49,7 @@ class AverageMeter(object):
 def evaluate_model(val_loader, model, criterion, config):
     train_loss = AverageMeter()
     train_accuracy = AverageMeter()
-    if config["precision_recall"]
+    if config["precision_recall"]:
         train_precision = AverageMeter()
         train_recall = AverageMeter()
     model.eval()
@@ -67,12 +67,12 @@ def evaluate_model(val_loader, model, criterion, config):
             y_score =  torch.topk(output,1).indices.reshape(output.size(0)).detach().cpu().numpy()
             acc = accuracy_score(y_true, y_score)
             train_accuracy.update(acc, images.size(0))
-            if config["precision_recall"]
+            if config["precision_recall"]:
                 rec = recall_score(y_true, y_score)
                 prec = precision_score(y_true, y_score)
                 train_precision.update(prec, images.size(0))
                 train_recall.update(rec, images.size(0))
-    if config["precision_recall"]         
+    if config["precision_recall"]:         
         print(f'Validation-->  Loss: {mean(train_loss.history):.3f}, Accuracy:{mean(train_accuracy.history):.3f}, Pecision:{mean(train_precision.history):.3f} , Recall:{mean(train_recall.history):.3f}')
     else:
         print(f'Validation-->  Loss: {mean(train_loss.history):.3f}, Accuracy:{mean(train_accuracy.history):.3f}')
@@ -80,7 +80,7 @@ def evaluate_model(val_loader, model, criterion, config):
     if config["precision_recall"]:
         return mean(train_loss.history), mean(train_accuracy.history), mean(train_precision.history), mean(train_recall.history)
     else:
-        return mean(train_loss.history), mean(train_accuracy.history))
+        return mean(train_loss.history), mean(train_accuracy.history)
 
 def get_data_loader(config):
 
@@ -124,9 +124,11 @@ def main(config):
 
     print(f'Number of trainable parameters : {sum(p.numel() for p in net.parameters() if p.requires_grad)}')
 
-    epochs = checkpnt['epoch']
     if config['load_checkpoint']:
+        epochs = checkpnt['epoch']
         epochs = epochs - checkpnt['epoch']+1
+    else:
+        epochs = 2
     train_loss = AverageMeter()
     train_accuracy = AverageMeter()
     validation_loss = AverageMeter()
@@ -144,6 +146,15 @@ def main(config):
         print("Evaluating model after loding checkpoint") 
         evaluate_model(val_loader, net, criterion, config)
     with torch.autograd.set_detect_anomaly(True):
+        train_loss.reset()
+        train_accuracy.reset()
+        validation_loss.reset()
+        validation_accuracy.reset()
+        if config['precision_recall']:
+            train_precision.reset()
+            train_recall.reset()          
+            validation_precision.reset()
+            validation_recall.reset()
         print("starting epochs")
         for epoch in range(epochs):
             net.train()
@@ -233,11 +244,6 @@ def main(config):
             np.save(f'{dump_path}/val_recall', np.array(validation_recall.history))
     
     writer.flush()
-    weight_path = config['weight_path']
-    checkpoint_path = f"{weight_path}/{timestamp}"
-    torch.save(net, checkpoint_path)
-# # np.array(f_val).dump(open("{}.npy".format(args.name),'w')))
-    
 
 if __name__ == "__main__":
 

@@ -13,7 +13,7 @@ def config():
     parser.add_argument('-is,','--image_size',type = int,default = 150,help='Set image size for the model')
     parser.add_argument('-sc,','--save_checkpoint',type = bool,default = True,help='Set image size for the model')
     parser.add_argument('-pr', '--precision_recall', type = bool, default=False, help='Print precision and recall')
-    parser.add_argument('-load_checkpoint', type = bool, default=True, help='Whether to load checlpoint')
+    parser.add_argument('-load_checkpoint', type = bool, default=False, help='Whether to load checlpoint')
     parser.add_argument('-save_summary', type=bool, default = True, help='save summary')
     parser.add_argument('-print_frequency', type = int, default = 1000, help='Print frequency for iterations')
     parser.add_argument('-weight_path', type = str, default = 'weights', help='Path to save trained weights')

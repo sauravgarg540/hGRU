@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 
 class hGRU(nn.Module):
     
-    def __init__(self,config,writer = None):
+    def __init__(self,config = None,writer = None):
         
         super().__init__()
         self.writer = writer
@@ -46,33 +46,33 @@ class hGRU(nn.Module):
     def forward(self, x, step=None):
         h_2 = None
         x = self.conv_feature_extractor(x)
-        if self.writer and step and step%100 == 0:
+        if self.writer and step is not None and step%100 == 0:
             grid_img = torchvision.utils.make_grid(x[0].unsqueeze(1), pad_value = 10)
             self.writer.add_image("feature_extrctor", grid_img, step)
         x = torch.pow(x, 2) #elementwise multiplication
-        if self.writer and step and step%100 == 0:
+        if self.writer and step is not None and step%100 == 0:
             grid_img = torchvision.utils.make_grid(x[0].unsqueeze(1), pad_value = 10)
             self.writer.add_image("element_wise_multiplication", grid_img, step)
         for i in range(self.timesteps):
             h_2 = self.hgru_unit(x, timesteps = i, h_2 = h_2)
-        if self.writer and step and step%100 == 0:
+        if self.writer and step is not None and step%100 == 0:
             grid_img = torchvision.utils.make_grid(h_2[0].unsqueeze(1), pad_value = 10)
             self.writer.add_image("H_2_images", grid_img, step)
         x = self.bn2_1(h_2)
-        if self.writer and step and step%100 == 0:
+        if self.writer and step is not None and step%100 == 0:
             grid_img = torchvision.utils.make_grid(x[0].unsqueeze(1), pad_value = 10)
             self.writer.add_image("first_bn", grid_img, step)
         x = self.conv_readout(x) #[1,2,150,150]
-        if self.writer and step and step%100 == 0:
+        if self.writer and step is not None and step%100 == 0:
             grid_img = torchvision.utils.make_grid(x[0].unsqueeze(1), pad_value = 10)
             self.writer.add_image("readout", grid_img, step)
         # x = torch.max(torch.max(x,2).values,2).values #global maxpooling
         x = self.maxpool(x)
-        if self.writer and step and step%100 == 0:
+        if self.writer and step is not None and step%100 == 0:
             self.writer.add_scalar("maxpool/1", x[0,0,0,0], step)
             self.writer.add_scalar("maxpool/2", x[0,1,0,0], step)
         x = self.bn2_2(x)
-        if self.writer  and step and step%100 == 0:
+        if self.writer  and step is not None and step%100 == 0:
             self.writer.add_scalar("second_bn/1", x[0,0,0,0], step)
             self.writer.add_scalar("second_bn/2", x[0,1,0,0], step)
         x = self.flat(x)
