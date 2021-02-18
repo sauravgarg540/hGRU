@@ -111,17 +111,24 @@ def train(net, train_loader, epoch, criterion, optimizer, config, writer):
                 
             else: 
                 print(f'Epoch:{epoch} --> Iteration {i}/{len(train_loader)} Loss: {mean(train_loss.history):.3f},  Accuracy: {mean(train_accuracy.history):.3f}')
-        if config['precision_recall']:
-            return mean(train_loss.history), mean(train_accuracy.history), mean(train_precision.history), mean(train_recall.history)
-        else:
-            return mean(train_loss.history), mean(train_accuracy.history)
+
+    if(config['save_dump']):
+        np.save(f'dump/accuracy_{epoch}', np.array(train_accuracy.history))
+        np.save(f'dump/loss_{epoch}', np.array(train_loss.history))
+        if config['precision_recall']: 
+            np.save(f'dump/precision_{epoch}', np.array(train_precision.history))
+            np.save(f'dump/recall_{epoch}', np.array(train_recall.history))
+    if config['precision_recall']:
+        return mean(train_loss.history), mean(train_accuracy.history), mean(train_precision.history), mean(train_recall.history)
+    else:
+        return mean(train_loss.history), mean(train_accuracy.history)
     
 
 
 def evaluate_model(val_loader, model, criterion, config):
     """Evaluate the model"""
 
-    valiadtion_loss = AverageMeter()
+    validation_loss = AverageMeter()
     validation_accuracy = AverageMeter()
     if config["precision_recall"]:
         validation_precision = AverageMeter()
@@ -137,7 +144,7 @@ def evaluate_model(val_loader, model, criterion, config):
             y_true = targets.detach().cpu().numpy()
             y_score =  torch.topk(output,1).indices.reshape(output.size(0)).detach().cpu().numpy()
             acc = accuracy_score(y_true, y_score)
-            train_accuracy.update(acc, images.size(0))
+            validation_accuracy.update(acc, images.size(0))
             if config["precision_recall"]:
                 rec = recall_score(y_true, y_score)
                 prec = precision_score(y_true, y_score)
@@ -205,6 +212,14 @@ def main(config):
                 validation_loss, validation_accuracy = evaluate_model(val_loader, net, criterion, config)
                 print(f"Epoch:{epoch}:  Loss: {mean(train_loss.history):.3f},  Accuracy: {mean(train_accuracy.history):.3f}")
                 print(f'Validation-->  Loss: {mean(validation_loss.history):.3f}, Accuracy:{mean(validation_accuracy.history):.3f}')
+            
+            t = time.localtime()
+            timestamp = time.strftime('%b-%d-%Y_%H%M', t)
+            torch.save({
+            'epoch': epoch,
+            'model_state_dict': net.state_dict(),
+            }, f"checkpoints/checkpoint_{epoch}_" + timestamp+"_.pt")
+
                          
 
 if __name__ == "__main__":
