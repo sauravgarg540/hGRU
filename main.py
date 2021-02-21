@@ -177,9 +177,9 @@ def main(config):
         net.cuda()
 
     if config['load_checkpoint']:
-        print(f"loading checkpoint saved after {checkpnt['epoch']+1} epoch(s)") 
         checkpnt = torch.load('checkpoints/checkpoint_0_Feb-15-2021_0305_.pt')
         net.load_state_dict(checkpnt['model_state_dict'])
+        print(f"loading checkpoint saved after {checkpnt['epoch']+1} epoch(s)") 
 
     print(f'Number of trainable parameters : {sum(p.numel() for p in net.parameters() if p.requires_grad)}')
 
@@ -210,8 +210,8 @@ def main(config):
             else:
                 train_loss, train_accuracy = train(net, train_loader, epoch, criterion, optimizer, config, writer)
                 validation_loss, validation_accuracy = evaluate_model(val_loader, net, criterion, config)
-                print(f"Epoch:{epoch}:  Loss: {mean(train_loss.history):.3f},  Accuracy: {mean(train_accuracy.history):.3f}")
-                print(f'Validation-->  Loss: {mean(validation_loss.history):.3f}, Accuracy:{mean(validation_accuracy.history):.3f}')
+                print(f"Epoch:{epoch}:  Loss: {train_loss:.3f},  Accuracy: {train_accuracy:.3f}")
+                print(f'Validation-->  Loss: {validation_loss:.3f}, Accuracy:{validation_accuracy:.3f}')
             
             t = time.localtime()
             timestamp = time.strftime('%b-%d-%Y_%H%M', t)
