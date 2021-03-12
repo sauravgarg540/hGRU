@@ -219,7 +219,8 @@ def main(config):
             'epoch': epoch,
             'model_state_dict': net.state_dict(),
             }, f"checkpoints/checkpoint_{epoch}_" + timestamp+"_.pt")
-
+    if config['save_summary']:
+        writer.flush()
                          
 
 if __name__ == "__main__":
