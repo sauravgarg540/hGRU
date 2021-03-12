@@ -12,12 +12,10 @@ import matplotlib.pyplot as plt
 
 class hGRU(nn.Module):
     
-    def __init__(self,config = None,writer = None):
+    def __init__(self,config = None):
         
         super().__init__()
-        self.writer = writer
         self.timesteps = 8
-        
         # Feature extraction stage
         kernel_size = 7
         self.padding = kernel_size//2
@@ -26,7 +24,7 @@ class hGRU(nn.Module):
         nn.init.zeros_(self.conv_feature_extractor.bias)
         
         # HRGU
-        self.hgru_unit = HgruCell(writer = self.writer)
+        self.hgru_unit = HgruCell()
         
         # readout stage
         self.conv_readout = nn.Conv2d(25, 2, kernel_size=1)
@@ -43,46 +41,18 @@ class hGRU(nn.Module):
         nn.init.zeros_(self.fc.bias)
         
 
-    def forward(self, x, step=None):
+    def forward(self, x):
         temp = 1
         h_2 = None
         x = self.conv_feature_extractor(x)
-        # plt.figure()
-        # plt.imshow(x.detach().cpu().numpy()[0,0], cmap="gray")
-        # plt.show()
-        if self.writer and step is not None and step%temp == 0:
-            grid_img = torchvision.utils.make_grid(x[0].unsqueeze(1), pad_value = 10)
-            self.writer.add_image("__1_feature_extrctor", grid_img, step)
         x = torch.pow(x, 2) #elementwise multiplication
-        # plt.figure()
-        # plt.imshow(x.detach().cpu().numpy()[0,0], cmap="gray")
-        # plt.show()
-        if self.writer and step is not None and step%temp == 0:
-            grid_img = torchvision.utils.make_grid(x[0].unsqueeze(1), pad_value = 10)
-            self.writer.add_image("__28_element_wise_multiplication", grid_img, step)
         for i in range(self.timesteps):
             h_2 = self.hgru_unit(x, timesteps = i, h_2 = h_2)
-        if self.writer and step is not None and step%temp == 0:
-            grid_img = torchvision.utils.make_grid(h_2[0].unsqueeze(1), pad_value = 10)
-            self.writer.add_image("__29_H_2_after_loop", grid_img, step)
         x = self.bn2_1(h_2)
-        if self.writer and step is not None and step%temp == 0:
-            grid_img = torchvision.utils.make_grid(x[0].unsqueeze(1), pad_value = 10)
-            self.writer.add_image("__30_first_bn", grid_img, step)
         x = self.conv_readout(x) #[1,2,150,150]
-        if self.writer and step is not None and step%temp == 0:
-            grid_img = torchvision.utils.make_grid(x[0].unsqueeze(1), pad_value = 10)
-            self.writer.add_image("__31_readout", grid_img, step)
         # x = torch.max(torch.max(x,2).values,2).values #global maxpooling
         x = self.maxpool(x)
-        if self.writer and step is not None and step%temp == 0:
-            self.writer.add_scalar("maxpool/1", x[0,0,0,0], step)
-            self.writer.add_scalar("maxpool/2", x[0,1,0,0], step)
         x = self.bn2_2(x)
-        if self.writer  and step is not None and step%temp == 0:
-            self.writer.add_scalar("second_bn/1", x[0,0,0,0], step)
-            self.writer.add_scalar("second_bn/2", x[0,1,0,0], step)
         x = self.flat(x)
         x = self.fc(x)
-        self.writer.flush()
         return x
