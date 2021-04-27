@@ -46,8 +46,10 @@ class HgruCell(nn.Module):
         if h_2 == None:
             h_2 = ini.xavier_uniform_(torch.empty(x.size(1),x.size(2),x.size(3),x.size(0)))
             h_2 = h_2.permute(3,0,1,2).cuda()
+
         grid_img = torchvision.utils.make_grid(h_2[0].unsqueeze(1), pad_value = 10)
         self.writer.add_image("__2_H_2_inside", grid_img, timesteps)
+
         g1_intermediate = self.gain_kernel(h_2)
         grid_img = torchvision.utils.make_grid(g1_intermediate[0].unsqueeze(1), pad_value = 10)
         self.writer.add_image("__3_g1_intermediate", grid_img, timesteps)
@@ -92,6 +94,7 @@ class HgruCell(nn.Module):
         g2_intermediate_bias = g2_intermediate + self.mix_bias
         grid_img = torchvision.utils.make_grid(g2_intermediate_bias[0].unsqueeze(1), pad_value = 10)
         self.writer.add_image("__14_g2_intermediate_bias", grid_img, timesteps)
+
         g_2 = torch.sigmoid(g2_intermediate + self.mix_bias)
         grid_img = torchvision.utils.make_grid(g_2[0].unsqueeze(1), pad_value = 10)
         self.writer.add_image("__15_g_2", grid_img, timesteps)

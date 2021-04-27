@@ -75,7 +75,7 @@ def train(net, train_loader, epoch, criterion, optimizer, config, writer):
         images = images.cuda()
         targets = targets.cuda()
         optimizer.zero_grad()
-        output  = net.forward(images,epoch * len(train_loader) + i)
+        output  = net.forward(images)
         loss = criterion(output, targets)
         loss.backward()
         optimizer.step()
@@ -157,7 +157,6 @@ def evaluate_model(val_loader, model, criterion, config):
 
 def main(config):
     writer = None
-
     
     check_path(config['checkpoint_path'])
     check_path(config['dump_path'])
@@ -168,9 +167,9 @@ def main(config):
 
     if torch.cuda.device_count() > 1:
         print(f"CUDA available, Model will now train on {torch.cuda.device_count()} GPU's")
-        net = nn.DataParallel(model.hGRU(config, writer))
+        net = nn.DataParallel(model.hGRU(config))
     else:
-        net = model.hGRU(config, writer)
+        net = model.hGRU(config)
 
     if torch.cuda.device_count() >= 1:
         print(f"Model loaded to {torch.cuda.device_count()} GPU(s)")

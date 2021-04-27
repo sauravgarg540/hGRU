@@ -12,12 +12,10 @@ import matplotlib.pyplot as plt
 
 class hGRU(nn.Module):
     
-    def __init__(self,config = None,writer = None):
+    def __init__(self,config = None):
         
         super().__init__()
-        self.writer = writer
         self.timesteps = 8
-        
         # Feature extraction stage
         kernel_size = 7
         self.padding = kernel_size//2
@@ -42,7 +40,6 @@ class hGRU(nn.Module):
         nn.init.xavier_normal_(self.fc.weight)
         nn.init.zeros_(self.fc.bias)
         
-
     def forward(self, x, step=None):
         temp = 1
         h_2 = None
