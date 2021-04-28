@@ -126,8 +126,8 @@ def gen_plot(t, sub = True):
                     )
         count = 0
         #looping through all the kernels in each channel
-        vmin = np.amin(t[0])
-        vmax = np.amax(t[0])
+        vmin = np.amin(t)
+        vmax = np.amax(t)
         for ax in grid:
             if(count==t.shape[1]):
                 break

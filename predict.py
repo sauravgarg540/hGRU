@@ -81,7 +81,7 @@ def plot_filters_single_channel(t):
 
 
 if __name__ == "__main__":
-    writer = SummaryWriter()
+    writer = SummaryWriter('runs/4_pixels_upper_vertical')
     # writer = None
     parser = configuration.config()
     config = parser.parse_args()

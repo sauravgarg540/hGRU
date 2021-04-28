@@ -101,22 +101,45 @@ def draw_circle(window_size, coordinate, radius, aa_scale):
     return transform.resize(image, (window_size[0], window_size[1]))
 start = 100
 # img2 = draw_circle([300,300],[150,150],3,4)
-for run in range(2,12,2):
+
+# Horizontal dashes
+
+# for run in range(2,12,2):
+#     run = 3
+#     image = np.zeros((300,300),np.uint8)
+#     k = 0
+#     for i in range(14):
+#         l_im, m_im = draw_line_n_mask((300,300), [start,100+k], 0, 5, 1.5, 4, generate_dilation_struct(4*aa_scale), aa_scale, contrast_scale=1.0)
+#         image = np.maximum(image, l_im)
+#         k+=9
+#     k=0
+#     for i in range(14):
+#         l_im, m_im = draw_line_n_mask((300,300), [start+run,100+k], 0, 5, 1.5, 4, generate_dilation_struct(4*aa_scale), aa_scale, contrast_scale=1.0)
+#         image = np.maximum(image, l_im)
+#         k+=9
+
+
+# Vertical dashes
+
+for run in range(2,11,1):
+
     image = np.zeros((300,300),np.uint8)
     k = 0
     for i in range(14):
-        l_im, m_im = draw_line_n_mask((300,300), [start,100+k], 0, 5, 1.5, 4, generate_dilation_struct(4*aa_scale), aa_scale, contrast_scale=1.0)
+        l_im, m_im = draw_line_n_mask((300,300), [start+k,100+k], np.pi/4, 5, 1.5, 4, generate_dilation_struct(4*aa_scale), aa_scale, contrast_scale=1.0)
         image = np.maximum(image, l_im)
         k+=9
     k=0
     for i in range(14):
-        l_im, m_im = draw_line_n_mask((300,300), [start+run,100+k], 0, 5, 1.5, 4, generate_dilation_struct(4*aa_scale), aa_scale, contrast_scale=1.0)
+        # print(start+run+k,100+k)
+        l_im, m_im = draw_line_n_mask((300,300), [start+run+k,100+k], np.pi/4, 5, 1.5, 4, generate_dilation_struct(4*aa_scale), aa_scale, contrast_scale=1.0)
         image = np.maximum(image, l_im)
         k+=9
 
-    sample = draw_circle([300,300],[start,221],3,4)
+    sample = draw_circle([300,300],[start,100],3,4)
     image = np.maximum(image, sample)
-    sample = draw_circle([300,300],[start+run,100],3,4)
+    # print(start+run+k,100+k)
+    sample = draw_circle([300,300],[start+run+k-5,100+k-5],3,4)
     im = np.maximum(image, sample)
     # print(np.max(im))
     imageio.imwrite(f'experiment/{run}_pixels_upper.png', im)

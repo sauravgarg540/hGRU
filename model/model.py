@@ -72,8 +72,8 @@ class hGRU(nn.Module):
             print(max_1)
             print(max_2)
             im = x_.detach().cpu().numpy()[0]
-            im1 = cv2.circle(cv2.cvtColor(im[0], cv2.COLOR_GRAY2RGB),(max_1[1],max_1[0]), 5, (255, 255, 0), 1)
-            im2 = cv2.circle(cv2.cvtColor(im[1], cv2.COLOR_GRAY2RGB),(max_2[1],max_2[0]), 5, (255, 255, 0), 1)
+            im1 = cv2.circle(cv2.cvtColor(im[0], cv2.COLOR_GRAY2RGB),(max_1[1],max_1[0]), 5, (255, 255, 0), 2)
+            im2 = cv2.circle(cv2.cvtColor(im[1], cv2.COLOR_GRAY2RGB),(max_2[1],max_2[0]), 5, (255, 255, 0), 2)
             im = np.stack((im1, im2))
             self.writer.add_figure("__33_readout", gen_readout(im), i)
 
